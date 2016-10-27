@@ -1,0 +1,107 @@
+###### COMPONENTES PRINCIPALES ######
+# INDICE DE REZAGO SOCIAL
+
+library(foreign)
+memory.size() #para muchas variables
+
+iter<-read.csv("C://Users//SALA 10//Documents//iter_00_cpv2010.csv")
+
+# Los (*) indican que no hay mas de 3 viviendas
+
+iter1<-subset(iter,iter$pobmas!="*" & iter$p_0a2!="*" & iter$nom_loc=="Total de la Entidad")
+rm(iter) #para eliminar base
+
+attach(iter1) #para solo ocupar esta base
+
+#### EDUCATIVOS
+
+## Porcentaje de la poblacion de 15 años y mas analfabeta
+I_ANALF <- as.numeric(as.character(p15ym_an))/as.numeric(as.character(p_15ymas))
+## Porcentaje de la pob. de 6 a 14 años que no asiste a la escuela
+I_ASISTESC <- (as.numeric(as.character(p6a11_noa))+as.numeric(as.character(p12a14noa)))/(as.numeric(as.character(p_6a11))+as.numeric(as.character(p_12a14)))
+## Porcentaje de la pob de 15 años o mas con educ basica incimpleta
+I_EDBASINC <-( as.numeric(as.character(p15ym_se)) + as.numeric(as.character(p15pri_in)) + as.numeric(as.character(p15pri_co)) + as.numeric(as.character(p15sec_in)))/ as.numeric(as.character(p_15ymas)) 
+
+#### ACCESO A SERVICIOS DE SALUD
+## Porcentaje de la poblaci??n sin derechohabiencia a servicios de salud
+I_SDSALUD <- as.numeric(as.character(psinder))/ as.numeric(as.character(pobtot)) 
+
+#### CALIDAD Y ESPACIOS EN LA VIVIENDA
+## Porcentaje de las viviendas particulares habitadas con piso de tierra
+I_PTIERRA <- as.numeric(as.character(vph_pisoti))/ as.numeric(as.character(vivpar_hab))
+## Promedio de ocupantes por cuarto
+I_HACIN <- as.numeric(as.character(pro_ocup_c)) 
+## Porcentaje de las viviendas particulares habitadas que no disponen de excusado o sanitario
+I_NOSAN <-1-( as.numeric(as.character(vph_excsa))/ as.numeric(as.character(vivpar_hab))) 
+## Porcentaje de las viviendas particulares habitadas que no disponen de agua entubada de la red p??blica
+I_NOAGUA <- as.numeric(as.character(vph_aguafv))/ as.numeric(as.character(vivpar_hab)) 
+## Porcentaje de las viviendas particulares habitadas que no disponen de drenaje
+I_NODREN <- as.numeric(as.character(vph_nodren))/ as.numeric(as.character(vivpar_hab)) 
+## Porcentaje de las viviendas particulares habitadas que no disponen de energ??a el??ctrica
+I_NOELEC <- as.numeric(as.character(vph_s_elec))/ as.numeric(as.character(vivpar_hab)) 
+## Porcentaje de las viviendas particulares habitadas que no disponen de lavadora
+#### ACTIVOS EN EL HOGAR 
+I_NOLAV <-1-( as.numeric(as.character(vph_lavad))/as.numeric(as.character(vivpar_hab))) 
+##Porcentaje de las viviendas particulares habitadas que no disponen de refrigerador.
+I_NOREF <-1-(as.numeric(as.character(vph_refri))/as.numeric(as.character(vivpar_hab) ))
+
+#Estandarizamos
+#Al estandarizar los datos nos aseguramos que las unidades son homogeneas y por tanto son unidades comparables
+est_I_ANALF<-((I_ANALF-mean(I_ANALF, na.rm = TRUE))/(sd(I_ANALF, na.rm = TRUE)))
+est_I_ASISTESC<-((I_ASISTESC-mean(I_ASISTESC, na.rm = TRUE))/(sd(I_ASISTESC, na.rm = TRUE)))
+est_I_EDBASINC<-((I_EDBASINC-mean(I_EDBASINC, na.rm = TRUE))/(sd(I_EDBASINC, na.rm = TRUE)))
+est_I_SDSALUD<-((I_SDSALUD-mean(I_SDSALUD, na.rm = TRUE))/(sd(I_SDSALUD, na.rm = TRUE)))
+est_I_PTIERRA<-((I_PTIERRA-mean(I_PTIERRA, na.rm = TRUE))/(sd(I_PTIERRA, na.rm = TRUE)))
+est_I_NOSAN<-((I_NOSAN-mean(I_NOSAN, na.rm = TRUE))/(sd(I_NOSAN, na.rm = TRUE)))
+est_I_NOAGUA<-((I_NOAGUA-mean(I_NOAGUA, na.rm = TRUE))/(sd(I_NOAGUA, na.rm = TRUE)))
+est_I_NODREN<-((I_NODREN-mean(I_NODREN, na.rm = TRUE))/(sd(I_NODREN, na.rm = TRUE)))
+est_I_NOELEC<-((I_NOELEC-mean(I_NOELEC, na.rm = TRUE))/(sd(I_NOELEC, na.rm = TRUE)))
+est_I_NOLAV<-((I_NOLAV-mean(I_NOLAV, na.rm = TRUE))/(sd(I_NOLAV, na.rm = TRUE)))
+est_I_NOREF<-((I_NOREF-mean(I_NOREF, na.rm = TRUE))/(sd(I_NOREF, na.rm = TRUE)))
+
+#creamos la base que ocuparemos para calcular los PCA.
+#Crear data.frame Base_ent
+Base_ent<- data.frame(est_I_ANALF,  est_I_ASISTESC,  est_I_EDBASINC, est_I_SDSALUD, est_I_PTIERRA, est_I_NOSAN, est_I_NOAGUA, est_I_NODREN, est_I_NOELEC, est_I_NOLAV, est_I_NOREF)
+
+#hacemos el KMO(Kaiser-Meyer-Olkin) y test de bartlett
+source("C://Users//SALA 10//Downloads//kmo.R")
+
+#Antes de aplicar el ACP debe comprobarse si es necesario, es decir, si la correlacioon entre las 
+#variables analizadas es lo suficientemente grande como para justificar la aplicacion del metodo.
+# H0: la matriz de coeficientes de correlacion no es significativamente distinta de la matriz identidad
+cor(Base_ent)
+bartlett.sphere(Base_ent) # Es muy significativo
+
+#El problema con esta prueba es que tiende a ser estadisticamente significativo cuando el taman??o muestral n crece
+#Unicamente utilizar cuando n/k<5 (32/11<5, no hay problema para aplicar)
+###La prueba KMO consiste en contrastar correlaciones parciales, las
+##cuales deben ser explicadas por el resto de las variables, en este caso, un ??ndice de KMO
+##cercano a uno expresa que el ACP es factible 
+# 0 < KMO < 1
+kmo.test(Base_ent)
+#El primer componente me expresa el 73% (overall)
+
+### LISTOS PARA APLICAR COMPONENTES PRINCIPALES
+
+pca<-prcomp(Base_ent)
+pca
+summary(pca)
+# El primer componente debe ser > a 0.5 para poder tomarlo
+biplot(pca,cex=.5)
+# La longitud de cada vector indica la importancia de cada variable en el modelo, de esta manera, 
+# vectores cortos indican que la variable es susceptible a eliminarse del modelo.
+# El ??ngulo entre dos vectores representa el grado de correlaci??n entre dos variables; cuanto menor 
+#sea el ??ngulo, mayor es el grado de correlaci??n entre ??stas variables. De esta manera, si el ??ngulo 
+#entre dos vectores es muy peque??o, puede optarse por eliminar una de las dos variables del modelo, 
+#de preferencia aquella cuyo vector sea m??s corto.
+pca1<-pca$x[,1] 
+pca1
+x2<-sd(pca1)
+x3<-mean(pca1)
+INRZ<-(pca1-x3)/x2
+#los cuales se pueden comparar con los resultados publicados por coneval
+INRZ
+detach (iter1)
+
+s<- data.frame (iter1$nom_ent, INRZ)
+View (s)
